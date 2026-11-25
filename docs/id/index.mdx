@@ -35,9 +35,10 @@ Rangkaian tes yang menjadi gerbang rilis harus menghasilkan hasil yang sama
 setiap kali dijalankan pada sebuah commit. e2e dapat menjalankan rangkaian itu
 tanpa pemanggilan model:
 
-- **Tes deterministik.** Coding agent Anda menulis tes menggunakan locator dan
-  assertion. Tes tersebut tidak memerlukan model atau API key. Di web, tes
-  berjalan di browser yang dikendalikan [engine web](/web) melalui Playwright.
+- **Tes deterministik.** [Coding agent Anda](/coding-agents) menulis tes
+  menggunakan locator dan assertion. Tes tersebut tidak memerlukan model
+  atau API key. Di web, tes berjalan di browser yang dikendalikan
+  [engine web](/web) melalui Playwright.
 - **Tujuan yang direkam.** [Commit rekaman tujuan](/cache#commit-the-replay-cache),
   lalu CI [memutar ulang](/cache) `agent.act` yang terekam tanpa memanggil model.
   Dengan [`--strict-cache`](/cache#fail-on-a-stale-recording), rekaman yang
