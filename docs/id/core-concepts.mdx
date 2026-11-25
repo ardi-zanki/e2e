@@ -193,9 +193,10 @@ test('needs two organizations', async ({ app }) => {
 ```
 
 - Setiap tes berjalan dalam attempt sendiri. Mulai dari layar yang diperiksa
-  agar setiap eksekusi melewati klik-klik untuk menuju ke sana. Siapkan data
-  melalui fixture atau hook. Di browser, pulihkan [sesi tersimpan](/authentication)
-  lalu buka layar melalui jalur-nya. Di perangkat, buka
+  agar setiap eksekusi tidak perlu mengulang klik untuk menuju ke sana.
+  Siapkan data melalui fixture atau hook. Di browser, pulihkan
+  [sesi tersimpan](/authentication) lalu buka layar melalui jalurnya. Di
+  perangkat, buka
   [deep link](/mobile#the-device-fixture).
 - `test.skip(condition, reason)` menghentikan tes dengan status `skipped` jika
   kondisinya bernilai true.

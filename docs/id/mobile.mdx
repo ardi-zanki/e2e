@@ -114,16 +114,21 @@ setiap bahasa:
   engine: mobile({ platform: 'ios' }),
   app: {
     bundleId: 'com.example.app',
-    launchArguments: ['-AppleLanguages', '(fr)', '-AppleLocale', 'fr_FR'],
+    launchArguments: { AppleLanguages: ['fr'], AppleLocale: 'fr_FR' },
   },
 }
 ```
 
 - Aplikasi harus menyertakan bahasa tersebut. Jika tidak, iOS menampilkan
   bahasa development aplikasi.
-- Android tidak memiliki argumen peluncuran untuk bahasa. Pada perangkat cloud,
-  tetapkan `language` dan `locale` di `browserstack()` atau `testmu()`. Pada
-  perangkat lokal, ubah bahasa perangkat sebelum eksekusi.
+- Jika memakai array, argumen peluncuran yang sama ditulis sebagai
+  `['-AppleLanguages', '(fr)', '-AppleLocale', 'fr_FR']`.
+- Android tidak memiliki argumen peluncuran untuk bahasa. `AppleLanguages`
+  atau `AppleLocale` dalam objek `launchArguments` pada target Android membuat
+  konfigurasi gagal dimuat. Pada perangkat cloud, tetapkan `language` dan
+  `locale` di
+  `browserstack()` atau `testmu()`. Pada perangkat lokal, ubah bahasa perangkat
+  sebelum eksekusi.
 
 ### Build development Expo
 
@@ -415,6 +420,18 @@ test('the list and the detail split across the fold', async ({ agent, app, devic
   await device.fold('half-open');
   await agent.assert('the list and the detail sit on either side of the fold', { vision: true });
 });
+```
+
+Agent melipat perangkat dengan tool `fold` dari `foldTools`. Tambahkan tool itu
+ke konfigurasi agent agar `agent.act`, `e2e explore`, dan MCP server dapat
+melipat serta membuka perangkat. Posisi lipatan terakhir agent tetap aktif.
+Pertahankan langkah di `afterEach` yang mengembalikan perangkat ke posisi
+tertutup:
+
+```ts
+import { foldTools, mobileTools } from '@e2e-dev/mobile/tools';
+
+tools: { ...mobileTools(iphoneDuo), ...foldTools(iphoneDuo) },
 ```
 </Accordion>
 

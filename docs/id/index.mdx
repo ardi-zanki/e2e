@@ -29,6 +29,25 @@ test('a member upgrades to Pro', async ({ app, agent, screen }) => {
 });
 ```
 
+## Gerbang rilis di CI
+
+Rangkaian tes yang menjadi gerbang rilis harus menghasilkan hasil yang sama
+setiap kali dijalankan pada sebuah commit. e2e dapat menjalankan rangkaian itu
+tanpa pemanggilan model:
+
+- **Tes deterministik.** Coding agent Anda menulis tes menggunakan locator dan
+  assertion. Tes tersebut tidak memerlukan model atau API key. Di web, tes
+  berjalan di browser yang dikendalikan [engine web](/web) melalui Playwright.
+- **Tujuan yang direkam.** [Commit rekaman tujuan](/cache#commit-the-replay-cache),
+  lalu CI [memutar ulang](/cache) `agent.act` yang terekam tanpa memanggil model.
+  Dengan [`--strict-cache`](/cache#fail-on-a-stale-recording), rekaman yang
+  tidak lagi sesuai dengan aplikasi membuat langkah gagal dan model tidak
+  mengambil alih. Langkah yang belum pernah direkam atau rekamannya tidak
+  lengkap tetap [dijalankan secara langsung](/cache#fail-on-a-stale-recording).
+- **Pemeriksaan locator.** `expect(locator)` tidak memanggil model. Dengan
+  agent bawaan, `agent.assert`, `agent.waitFor`, dan `agent.extract` memanggil
+  model pada setiap eksekusi.
+
 ## Mengapa e2e
 
 - **Lebih sedikit waktu untuk tes.** Tulis tujuan, bukan skrip berisi selector
@@ -37,8 +56,7 @@ test('a member upgrades to Pro', async ({ app, agent, screen }) => {
 - **Eksekusi lebih hemat.** e2e merekam langkah `agent.act` setelah pemeriksaan
   berikutnya berhasil. Pada eksekusi selanjutnya, langkah itu
   [diputar ulang](/cache) tanpa pemanggilan model; agent mengambil alih lagi
-  saat aplikasi berubah. Dengan agent bawaan, `assert`, `waitFor`, dan
-  `extract` selalu memanggil model.
+  saat aplikasi berubah.
 
 ## Cara kerjanya
 
@@ -50,7 +68,6 @@ test('a member upgrades to Pro', async ({ app, agent, screen }) => {
 - **Langkah agent.** `agent.act` menyelesaikan tujuan. `agent.assert`,
   `agent.waitFor`, dan `agent.extract` menilai layar. Gunakan
   [langganan](/subscriptions), [API key, atau model lokal](/models) milik Anda.
-  Tes tanpa langkah agent tidak memerlukan model.
 - **Laporan.** Runner [menyamarkan secret terdaftar](/security) dari input
   model. Runner mencatat langkah, kegagalan, dan artefak dalam
   [laporan](/debugging) yang dapat dibaca oleh Anda atau coding agent.

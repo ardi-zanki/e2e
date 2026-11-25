@@ -192,6 +192,19 @@ setiap nama target. Setiap retry dimulai dengan ukuran target tersebut.
 - Target perangkat dapat berada dalam daftar yang sama. Lihat
   [referensi engine Mobile](/reference/mobile).
 
+### Layar dengan kepadatan piksel tinggi
+
+`deviceScaleFactor` menetapkan jumlah piksel perangkat untuk setiap piksel CSS.
+Nilai 2 menampilkan halaman seperti pada layar Retina. Screenshot yang disimpan
+berukuran dua kali viewport pada setiap sisinya:
+
+```ts title="Target fragment"
+{ name: 'retina', engine: web({ deviceScaleFactor: 2 }), app }
+```
+
+Faktor ini tidak mengubah gambar yang dibaca model atau gambar yang dibandingkan
+oleh `toHaveScreenshot`.
+
 ### Penuhi jendela browser
 
 `viewport: null` tidak menetapkan ukuran sehingga halaman memenuhi jendela
