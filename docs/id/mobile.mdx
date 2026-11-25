@@ -396,7 +396,7 @@ menulis locator.
 Android perangkat lipat (profil Pixel Fold atau "7.6in Foldable" generik).
 `closed` menyalakan layar luar. `half-open` dan `open` menyalakan layar dalam.
 Di Duo, pemanggilan selesai saat engsel mencapai posisi tersebut, biasanya
-setelah 10–16 detik. Karena itu, tetapkan `actionTimeout` minimal 20 detik;
+setelah 10 sampai 16 detik. Karena itu, tetapkan `actionTimeout` minimal 20 detik;
 posisi `half-open` pada perangkat ini menyerupai buku dengan sudut 130°. Pada
 emulator Android, pemanggilan selesai dalam beberapa detik setelah Android
 menerapkan status perangkat yang sesuai. Posisi `half-open` mengikuti sudut
@@ -863,7 +863,7 @@ export function cloudDevices(options: { provider: string; device: string; osVers
   `device.dismissKeyboard()` atau gulir node sampai terlihat. Lihat
   [Visibilitas](/reference/mobile#visibility).
 - `doubleTap()` dan `screen.doubleTapAt()` di iOS menjalankan dua tap dengan
-  jarak sekitar 285–335 ms. Atur jendela deteksi double tap setidaknya 350 ms.
+  jarak sekitar 285 sampai 335 ms. Atur jendela deteksi double tap setidaknya 350 ms.
 - Di iOS, `device.foregroundApp()` tetap menyebut aplikasi sesi setelah
   `device.home()`. Periksa layar sebagai gantinya.
 - Pada build Android tanpa perintah shell untuk layanan clipboard (misalnya
