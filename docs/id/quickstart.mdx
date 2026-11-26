@@ -12,7 +12,7 @@ import { VideoCard } from '../snippets/video-card.jsx';
 
 export const setupPrompt = `Siapkan tes end-to-end e2e di proyek ini. Dokumentasi: \`https://e2e.com/docs/quickstart.md\`
 
-1. Jalankan \`npx e2e init --yes\` (atau perintah pnpm atau bun yang setara untuk proyek ini). Perintah ini menulis konfigurasi web yang menggunakan Vercel AI Gateway, tes contoh, skill e2e, dan konfigurasi MCP. Belum ada yang diinstal.
+1. Jalankan \`npx e2e init --yes\` (atau perintah pnpm atau bun yang setara untuk proyek ini). Perintah ini menulis konfigurasi web yang menggunakan Vercel AI Gateway, tes contoh, skill e2e, baris pengarah ke skill di \`AGENTS.md\` dan \`CLAUDE.md\`, serta konfigurasi MCP. Belum ada yang diinstal.
 2. Baca skill e2e (\`npx e2e guide\` menampilkannya, sedangkan \`npx e2e guide <topic>\` menampilkan topik tertentu) lalu ikuti panduannya untuk setiap langkah di bawah.
 3. Arahkan target ke aplikasi ini. Untuk aplikasi web, tetapkan URL dan perintah untuk menjalankan server development. Untuk aplikasi iOS atau Android, ganti @e2e-dev/web dengan @e2e-dev/mobile dan sesuaikan tes contoh untuk engine mobile.
 4. Tanyakan model yang ingin saya gunakan untuk langkah agent: langganan ChatGPT, GitHub Copilot, OpenCode Console, atau SuperGrok, API key, atau model lokal. Konfigurasikan model tersebut dengan paket providernya. Jika perlu masuk, berikan perintah \`npx e2e login\` dan tunggu sampai saya mengonfirmasi.
@@ -67,7 +67,7 @@ memerlukan Xcode dengan runtime simulator iOS, atau Android SDK dengan emulator.
   </CodeGroup>
 
   Pilih **Web (Playwright)** atau **Mobile (iOS/Android)**, lalu pilih
-  langganan, provider model, atau **None** untuk tes tanpa AI. Wizard akan
+  langganan, provider model, atau **Skip for now** untuk tes tanpa AI. Wizard akan
   menulis konfigurasi dan tes contoh, menambahkan dependensi, serta menawarkan
   penyiapan coding agent. File yang sudah ada tetap dipertahankan.
 
@@ -258,7 +258,7 @@ bunx e2e run tests/agent.e2e.ts
 ```
 </CodeGroup>
 
-Jika memilih **None** di wizard, [tambahkan model](/models) terlebih dahulu. Tambahkan
+Jika memilih **Skip for now** di wizard, [tambahkan model](/models) terlebih dahulu. Tambahkan
 `--headed` untuk melihat tes web berjalan. Tambahkan `--no-cache` agar model dipanggil
 alih-alih memutar ulang tindakan dari cache.
 

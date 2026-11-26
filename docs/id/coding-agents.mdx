@@ -36,8 +36,11 @@ melakukan upgrade dengan pengelola paket. Tanpa `init`, `npx skills add e2e-inc/
 menginstal skill, sementara `npx e2e guide [topic]` menampilkan skill dari paket
 yang telah diinstal. Plugin di bawah ini memasang ketiga skill e2e di setiap proyek.
 
-`init` tidak mengubah instruksi proyek Anda. Untuk agent yang memerlukan
-petunjuk lokasi skill, tambahkan baris ini:
+`init` juga menambahkan baris ini ke `AGENTS.md`, sehingga prompt seperti
+"tambahkan tes untuk checkout" dapat mengarahkan agent ke skill. Untuk Claude
+Code, baris di `CLAUDE.md` menggunakan jalur `.claude/skills`; jika file belum
+ada, `init` akan membuatnya. Tambahkan baris ini sendiri jika Anda memasang
+skill dengan cara lain:
 
 ```md title="AGENTS.md"
 End-to-end tests use e2e; read .agents/skills/e2e/SKILL.md before writing or running one.

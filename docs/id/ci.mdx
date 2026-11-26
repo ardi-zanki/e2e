@@ -286,8 +286,11 @@ di `rerun-<n>/` dalam direktori setiap tes, sehingga satu unggahan berisi
 keduanya. [Referensi CLI](/reference/cli#flags) menjelaskan status yang
 termasuk gagal.
 
-Job terpisah tidak memiliki laporan pada runner-nya. Unduh laporan ke direktori
-output terlebih dahulu, atau jalankan ulang job yang gagal.
+Untuk menjalankan ulang di job terpisah, unduh `report.json` dari job sebelumnya
+ke direktori output. Jika job sebelumnya juga merupakan eksekusi ulang, unduh
+juga `report-with-reruns.json` yang sesuai agar hasil dan percobaan sebelumnya
+tetap tercakup. Unduh juga `results/` jika Anda memerlukan berkas dari tiap
+percobaan.
 
 ## Berikutnya
 
