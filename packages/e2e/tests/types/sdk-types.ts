@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { ctrf, json, junit, line, list as listReporter, markdown } from '../../src/reporters.ts';
 import {
   credentials,
+  defineConfig,
   expect,
   secrets,
   unique,
@@ -815,6 +816,13 @@ test.slow('imports a large file');
 test.slow('slow', async () => {});
 // @ts-expect-error the condition is a boolean
 test.slow(1);
+// step resolves to what its body returns, sync or async.
+void (test.step('Log in', async () => 7) satisfies Promise<number>);
+void (test.step('Read the title', () => 'Home') satisfies Promise<string>);
+// @ts-expect-error a step needs a body
+void test.step('Log in');
+// @ts-expect-error the title is a string
+void test.step(1, async () => {});
 test.fail('gap', async () => {}) satisfies ReturnType<typeof test>;
 void (test.fail(false) satisfies void);
 test('gap', { fail: 'known gap' }, async () => {});
@@ -1254,10 +1262,16 @@ test.extend<{}, {}, typeof constConfig>()('narrows a target platform', async ({ 
   if (platform === 'ios') await handset.closeApp();
   platform satisfies 'api' | 'plain' | 'ios';
 });
-// With an E2EConfig type annotation, the inferred engine types are lost, so engine fixtures aren't typed.
+// With an E2EConfig type annotation, the config has no target types, so test.extend rejects it.
 const annotatedConfig: E2EConfig = mixedConfig;
-// @ts-expect-error handset is absent from the annotated config type
-test.extend<{}, {}, typeof annotatedConfig>()('names handset', async ({ handset }) => { void handset; });
+// @ts-expect-error the annotated config type is rejected
+test.extend<{}, {}, typeof annotatedConfig>();
+// @ts-expect-error the annotated config type is rejected with fixture definitions too
+test.extend<{ extra: number }, {}, typeof annotatedConfig>({ extra: async ({}, use) => { await use(1); } });
+const annotatedTarget: Target = { engine: paneEngine };
+const spreadConfig = { targets: [{ ...annotatedTarget, name: 'one' }, { ...annotatedTarget, name: 'two' }] } as const satisfies E2EConfig;
+// @ts-expect-error a target spread from an annotated Target has no engine type either
+test.extend<{}, {}, typeof spreadConfig>();
 const inferredEngine = defineEngine({ name: 'tv', version: '1.0.0', spiVersion: 1, platform: 'tv', isolation: 'worker' });
 void (inferredEngine.platform satisfies 'tv' | undefined);
 void (inferredEngine.isolation satisfies 'worker' | undefined);
@@ -1265,6 +1279,23 @@ void (inferredEngine.isolation satisfies 'worker' | undefined);
 defineEngine<{}, 'ios'>({ name: 'tv', version: '1.0.0', spiVersion: 1 });
 // @ts-expect-error the literal 'worker' requires isolation: 'worker' in the spec
 defineEngine<{}, string, 'worker'>({ name: 'tv', version: '1.0.0', spiVersion: 1 });
+
+// defineConfig keeps the config's own type, so the config type passed to
+// test.extend types the engine's fixtures.
+const definedConfig = defineConfig({ targets: [{ engine: paneEngine, app: { url: 'http://127.0.0.1:0' } }] });
+test.extend<{}, {}, typeof definedConfig>()('reads an engine fixture', async ({ pane }) => {
+  await pane.goto('/');
+});
+// A config from defineConfig is still an E2EConfig.
+void (definedConfig satisfies E2EConfig);
+// defineConfig refuses a key E2EConfig doesn't have, as satisfies E2EConfig does.
+defineConfig({
+  targets: [{ engine: paneEngine }],
+  // @ts-expect-error E2EConfig has no key called bogus
+  bogus: true,
+});
+// @ts-expect-error E2EConfig has no key called reporter
+defineConfig({ reporter: ['list'], targets: [{ engine: paneEngine }] });
 
 // A test, a group, and a call each pin a configured agent by name.
 test('as the buyer', { agent: 'buyer' }, async () => {});

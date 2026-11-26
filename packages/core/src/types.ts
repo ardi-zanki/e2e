@@ -13,7 +13,7 @@ import type { StepCacheInfo } from './run/steps.ts';
 import type { EngineHandle } from './engine/index.ts';
 import type { KeyModifier, Momentum, ScrollDirection, SelectOption, ViewportPoint } from './engine/contract.ts';
 import type { CacheStore } from './cache/store.ts';
-import type { ConfigBase, ConfigFixtures, FixtureDefinitions, FixtureOverrides, OmitEach, PickEach, SelectedFixtures, TestOverrides, WorkerFixtures } from './types/fixtures.ts';
+import type { ConfigBase, ConfigFixtures, FixtureDefinitions, FixtureOverrides, InferredConfig, OmitEach, PickEach, SelectedFixtures, TestOverrides, WorkerFixtures } from './types/fixtures.ts';
 
 export type { KeyModifier, Momentum, ScrollDirection, SelectOption } from './engine/contract.ts';
 export type { CacheReadResult, CacheStore } from './cache/store.ts';
@@ -1118,6 +1118,19 @@ export interface TestAPI<Fixtures = TestFixtures, Worker = WorkerFixtures> exten
    * `COLLECTION_ERROR`, so use the `timeout` option there.
    */
   setTimeout(timeout: number): void;
+  /**
+   * Inside a running test, hook, or fixture: runs `body` as one step named
+   * `title` and returns what it returns. Reports show the title, with the
+   * calls `body` makes nested under it; steps nest. The step fails when
+   * `body` throws, and the error goes on to the test:
+   *
+   *   await test.step('Log in as test user', async () => {
+   *     await screen.getByTestId('login_button').tap();
+   *   });
+   *
+   * Outside a test the call is `COLLECTION_ERROR`.
+   */
+  step<T>(title: string, body: () => T | Promise<T>): Promise<T>;
   /** Registers one focused local test. CI rejects focused tests. */
   only(title: string, fn: TestFn<Fixtures & Worker>): TestCase;
   /** Registers one setup test with statically declared session outputs. */
@@ -1130,7 +1143,7 @@ export interface TestAPI<Fixtures = TestFixtures, Worker = WorkerFixtures> exten
    *
    *   export const test = base.extend<{ device: Device }>();
    */
-  extend<Extra = {}, ExtraWorker = {}, Config = unknown>(): TestAPI<
+  extend<Extra = {}, ExtraWorker = {}, Config extends InferredConfig<Config> = {}>(): TestAPI<
     ConfigBase<Fixtures, Config> & Extra & ConfigFixtures<Config, 'test'>,
     ConfigBase<Worker, Config> & ExtraWorker & ConfigFixtures<Config, 'worker'>
   >;
@@ -1185,7 +1198,7 @@ export interface TestAPI<Fixtures = TestFixtures, Worker = WorkerFixtures> exten
    * (`[fn, { scope: 'worker', auto: true }]`). A suite hook sets up the auto
    * worker fixtures of its chain, never a test fixture.
    */
-  extend<Extra = {}, ExtraWorker = {}, Config = unknown>(
+  extend<Extra = {}, ExtraWorker = {}, Config extends InferredConfig<Config> = {}>(
     fixtures: FixtureDefinitions<
       ConfigBase<Fixtures, Config> & ConfigBase<Worker, Config> & ConfigFixtures<Config, 'test'> & ConfigFixtures<Config, 'worker'>,
       Extra,
