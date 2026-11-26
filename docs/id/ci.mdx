@@ -283,8 +283,9 @@ yang sama dengan eksekusi pertama:
 
 Eksekusi ulang mempertahankan artefak dari eksekusi pertama dan menulis artefaknya sendiri
 di `rerun-<n>/` dalam direktori setiap tes, sehingga satu unggahan berisi
-keduanya. [Referensi CLI](/reference/cli#flags) menjelaskan status yang
-termasuk gagal.
+keduanya. Selain `report.json`, eksekusi ulang menulis `report-with-reruns.json`
+yang menggabungkan hasil kedua eksekusi dalam satu laporan. [Referensi CLI](/reference/cli#flags)
+menjelaskan status yang termasuk gagal.
 
 Untuk menjalankan ulang di job terpisah, unduh `report.json` dari job sebelumnya
 ke direktori output. Jika job sebelumnya juga merupakan eksekusi ulang, unduh
