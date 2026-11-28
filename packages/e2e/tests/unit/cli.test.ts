@@ -122,7 +122,7 @@ describe('e2e run argument parsing', () => {
     expect(runMock).not.toHaveBeenCalled();
     expect(process.exitCode).toBe(2);
     expect(written(stderrSpy)).toMatch(
-      /^error: "--headed" is a flag, not a test file\. It arrived as a file because a "--" came before it; "(?:pnpm|npm run|yarn|bun run) test:e2e -- --headed" reaches e2e as "run -- --headed" when the package manager forwards the separator\. Run the CLI directly instead: (?:pnpm exec|npm exec --|yarn|bun run) e2e run --headed\n\(add --help for usage\)\n$/u,
+      /^error: "--headed" is a flag, not a test file\. It arrived as a file because a "--" came before it; "(?:pnpm|npm run|yarn|bun run) test:e2e -- --headed" reaches e2e as "run -- --headed" when the package manager forwards the separator\. Run the CLI directly instead: (?:pnpm exec|npm exec --|yarn exec --|bun run) e2e run --headed\n\(add --help for usage\)\n$/u,
     );
   });
 
@@ -131,7 +131,7 @@ describe('e2e run argument parsing', () => {
     expect(runMock).not.toHaveBeenCalled();
     expect(process.exitCode).toBe(2);
     expect(written(stderrSpy)).toMatch(
-      /Run the CLI directly instead: (?:pnpm exec|npm exec --|yarn|bun run) e2e run --tag smoke tests\/b\.e2e\.ts\n/u,
+      /Run the CLI directly instead: (?:pnpm exec|npm exec --|yarn exec --|bun run) e2e run --tag smoke tests\/b\.e2e\.ts\n/u,
     );
   });
 
@@ -451,6 +451,14 @@ describe('e2e run argument parsing', () => {
     expect(written(stderrSpy)).toContain("option '--device <name>' argument '   ' is invalid. must name a simulator, emulator, or phone");
   });
 
+  it('passes --fully-parallel on, and leaves it unset without the flag', async () => {
+    await invoke('run', '--fully-parallel');
+    expect(lastRunOptions().fullyParallel).toBe(true);
+    runMock.mockClear();
+    await invoke('run');
+    expect(lastRunOptions().fullyParallel).toBeUndefined();
+  });
+
   it('parses numeric --retries and --workers', async () => {
     await invoke('run', '--retries', '2', '--workers', '4');
     const options = lastRunOptions();
@@ -589,7 +597,7 @@ describe('e2e list', () => {
     expect(process.exitCode).toBe(2);
     const stderr = written(stderrSpy);
     expect(stderr.startsWith('error: "--tag" is a flag, not a test file.')).toBe(true);
-    expect(stderr).toMatch(/Run the CLI directly instead: (?:pnpm exec|npm exec --|yarn|bun run) e2e list --tag smoke\n/u);
+    expect(stderr).toMatch(/Run the CLI directly instead: (?:pnpm exec|npm exec --|yarn exec --|bun run) e2e list --tag smoke\n/u);
     expect(stderr.endsWith('(add --help for usage)\n')).toBe(true);
   });
 
@@ -913,6 +921,7 @@ describe('e2e --version and --help', () => {
       '--device',
       '--agent',
       '--workers',
+      '--fully-parallel',
       '--retries',
       '--action-timeout',
       '--assertion-timeout',

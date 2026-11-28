@@ -20,6 +20,7 @@ import type {
   PointerActionKind,
   ScrollDirection,
   SemanticNode,
+  ViewportIntersection,
   ViewportPoint,
   ViewportSize,
 } from './contract.ts';
@@ -197,6 +198,8 @@ export interface TargetSession {
   readonly pointerActions: ReadonlySet<PointerActionKind>;
   /** Whether the engine declared `tapModifiers`, so the tap actions may carry `modifiers`. */
   readonly tapModifiers: boolean;
+  /** Whether the engine implements `viewportIntersection`, so `toBeInViewport` can refuse before it waits for a match. */
+  readonly measuresViewport: boolean;
   /** Captures one atomic agent observation; the harness redacts it downstream. */
   observe(operation: OperationContext, options?: EngineObserveOptions): Promise<Observation>;
   /** Resolves immediately; the runner owns query polling and strictness. */
@@ -205,6 +208,8 @@ export interface TargetSession {
   read(ref: NodeRef, operation: OperationContext): Promise<SemanticNode>;
   /** Reads requested rendered properties without changing app state. */
   readStyle(ref: NodeRef, properties: readonly ComputedStyleProperty[], operation: OperationContext): Promise<ComputedStyleValues>;
+  /** Measures how much of a located node is inside the viewport, checked against the contract's shape. */
+  viewportIntersection(ref: NodeRef, operation: OperationContext): Promise<ViewportIntersection>;
   /** Performs exactly one action on a located or observed node. */
   perform(ref: NodeRef, action: LocatorAction, operation: OperationContext): Promise<void>;
   /**
@@ -216,6 +221,12 @@ export interface TargetSession {
     momentum: Momentum | undefined,
     operation: OperationContext,
   ): Promise<void>;
+  /**
+   * The observation root's ref, which a screen-wide action such as
+   * `scrollTo` is performed on; observes first when no observation has
+   * named it yet.
+   */
+  rootRef(operation: OperationContext): Promise<NodeRef>;
   /** Performs one pointer action at a viewport point, in CSS pixels, with no node behind it. */
   performAt(point: ViewportPoint, action: PointerAction, operation: OperationContext): Promise<void>;
   /** Input to whatever holds focus; each member fails with UNSUPPORTED_CAPABILITY when the engine lacks it. */

@@ -94,8 +94,10 @@ Without `attach`, starts a new attempt using the config, engine, and app
 command for the target. The app opens at its URL or starts fresh on a
 device from the [pinned app](/mobile#point-at-your-app). It installs
 no build, so a local device target needs `app.bundleId`. Returns the session
-id, the catalog, and the first observation. The catalog there gives the single
-actions by name and arguments only; [`tools`](#tools-2) describes each. The summary above the observation
+id, the catalog, and one line that names the first screen: its revision, path,
+and node count. [`observe`](#observe) lists the nodes, and action results
+report changes against that screen. The catalog in the reply gives the single
+actions by name and arguments only; [`tools`](#tools-2) describes each. The summary
 tells the agent to read the `writing-tests` guide (`e2e://guide/writing-tests`) before it
 writes or edits a test; the server's instructions say the same.
 
@@ -116,13 +118,13 @@ open_session {target: "web", headed: true}
 
 | Input | Type | Required | Does |
 | --- | --- | --- | --- |
-| `target` | string | no | The target to open. Otherwise `--target`, else the only target. |
-| `config` | string (path) | no | The config for this session, absolute or relative to the server's working directory (`cwd` in the client's MCP config). Otherwise `--config`, else discovered like `e2e run`. |
+| `target` | string | no | The target to open. Falls back to `--target`, then the sole target. |
+| `config` | string (path) | no | The config for this session, absolute or relative to the server's working directory (`cwd` in the client's MCP config). Falls back to `--config`, then normal `e2e run` discovery. |
 | `headed` | boolean | no | `true` shows this session's browser or simulator, `false` hides it. Without it the session follows `--headed`. |
-| `path` | string | no | Where on the app URL to open instead of its root, such as `/settings/members`. The first observation is that page. Not with `test`. |
+| `path` | string | no | Where on the app URL to open instead of its root, such as `/settings/members`. The session opens on that page. Not with `test`. |
 | `test` | string | no | One test to run first, named like an `e2e run` positional. The session stops where the test stopped. See [Running a test](#running-a-test). |
 | `engine` | string or object | no | The session's engine in a directory with no config file, as a package name or `{package, export, options}`. See [Without a config](#without-a-config). |
-| `app` | object | no | The app under test for an `engine` session, as `url`, `bundleId`, or `appPath`. |
+| `app` | object | no | The app under test for an `engine` session, written as a target's [`app`](/reference/config#the-app-under-test). |
 | `attach` | string | no | ID from the pause header of a [held test](#attaching-to-a-held-test). Pass only this field. |
 
 #### `tools`
@@ -169,8 +171,10 @@ call {tool: "tap", args: {target: "n42"}, session: "<id>"}
 #### `close_session`
 
 Saves a recording still running, ends the attempt, and disposes the engine.
-It stops the app processes the session started once no other session uses
-them. Use it on an attachment to detach and leave the test held.
+It stops app processes and services when the session is their last user,
+with app processes stopping before services. The session frees its slot
+when its own cleanup finishes, even while another app is still stopping.
+Use it on an attachment to detach and leave the test held.
 
 ```txt
 close_session {session: "<id>"}
@@ -219,7 +223,7 @@ changed on screen.
 
 | Input | Does |
 | --- | --- |
-| A node id | From the newest observation. |
+| A node id | From the newest observation. An id only an earlier observation listed is found again on the newest one by what its node read as (role, name, test id, placeholder, and the text of a node with neither a name nor a test id), when exactly one node there reads the same; otherwise the action fails with `LOCATOR_NOT_FOUND`. |
 | The value, key, `checked` state, direction, drop target, project-relative or `sample:` `files`, URL, `width` and `height`, or secret name | What the verb needs. |
 | `modifiers` (optional) | On `tap`, `double_tap`, and `right_click`, when the engine declares `tapModifiers`: a list of `Shift`, `Control`, `Alt`, `Meta`, `ControlOrMeta`, held for the click. |
 
@@ -268,7 +272,7 @@ call {tool: "run_code", args: {code: "const rows = screen.getByRole('listitem');
 
 | Input | Does |
 | --- | --- |
-| `code` | The body of an async function. `screen`, `app`, `expect`, `credentials`, `secrets`, `console`, and the engine's fixture (`browser` or `device`) are in scope. A session attached to a held test has no engine fixture. |
+| `code` | The body of an async function. `screen`, `app`, `expect`, `credentials`, `secrets`, `services`, `console`, and the engine's fixture (`browser`, `device`, `desktop`, or `electron`) are in scope, in a session attached to a held test too. |
 | `timeout` | Optional. How long each action or matcher on `screen` waits by default, in ms, 1 through 120000. Without it: `5000`, or the config's timeout when shorter. |
 
 ```txt
@@ -335,9 +339,16 @@ name with the line it was thrown on.
 
 #### `test_lines`
 
-Returns every test line the session's actions printed, and every line
-[`run_code`](#run_code) passed, in order, as a draft test body. Takes no
-arguments.
+Returns, in order, the test lines from session actions and passing
+[`run_code`](#run_code) statements. Takes no arguments.
+
+For a new recording, split the draft into tests with one behavior each
+and check the outcome at the end of each test (when the session's agent
+configures a model or custom executor, the draft also recommends using
+`agent.act` for user flows). If you opened an existing
+test with `open_session {test}`, use the lines to continue that test
+where it stopped. If you attached to a held test with
+`open_session {attach}`, put the lines at the pause point of that test.
 
 Each action's result carries its line after the summary:
 
@@ -347,7 +358,8 @@ Test line: await screen.getByRole("button", "Sign in").tap();
 ```
 
 - The locator comes from the target as the newest observation listed it,
-  before the action runs. Role and name, label, placeholder, text, and test
+  before the action runs. An id an earlier observation listed is the node
+  the action acts on there (see [Actions](#actions)). Role and name, label, placeholder, text, and test
   id are tried in that order, and the first that matches the target and
   nothing else on the live screen wins, as [`locate`](#locate) would report it.
 - A locator that also matches twins is narrowed: to nodes that render
@@ -358,7 +370,7 @@ Test line: await screen.getByRole("button", "Sign in").tap();
   moved together.
 - A control with no name, label, placeholder, text, or test id is found by
   its role: alone when it is the only one (`getByRole("spinbutton")`, with
-  a comment), else narrowed like twins.
+  a comment), otherwise narrowed like twins.
 - At most 10 locators are tried per target. On a device each try reads the
   whole screen.
 - When nothing reaches the target alone, the result says `No test line:`
@@ -377,13 +389,19 @@ Test line: await screen.getByRole("button", "Sign in").tap();
 | `drag`, `upload` | `dragTo(locator)`, `setInputFiles(files)` |
 | `scroll_to` a node | `scrollIntoView()` |
 | `navigate`, `back` | `app.open(url)`, with a URL on the app's origin as its path; `app.back()` |
+| `tap_at` where the engine takes a bare point | `screen.tapAt({ x, y })` in the viewport's CSS pixels, with a comment that a point holds only while the layout does |
+| `tap_at`, `hover_at`, `type_at`, `press_at`, `select_at` on the listed control under the point | The control's line, as for `tap`, `hover`, `type`, `press`, and `select` by id |
+| `drag_at` between two listed controls | `dragTo(locator)` |
 
 No line: `type` or `press` with no target, `press` with `times` over 1,
 `scroll`, `scroll_to` a text, `dismiss_keyboard`, `resize_viewport` (set the
 size with the engine's built-in fixture, `browser.setViewport` on web), `switch_tab`
 and `close_tab` (`browser.tabs()[tab - 1].activate()` and `.close()` on
-web), and a `type` the
-node took through the keyboard. The [point tools](#point-tools) print nothing.
+web), a `type` or `type_at` the
+node took through the keyboard, `hover_at` and `drag_at` at bare points
+(no `screen` call repeats them), and `type_at` and `press_at` on a point
+where nothing is listed. A [point tool](#point-tools) called before the
+first screenshot does nothing and prints nothing.
 
 #### `screenshot`
 
@@ -462,7 +480,8 @@ recording is readable in the video.
 
 Project tools in `agents.default.tools` follow in the catalog under their
 own names, scoped to the target's platform. A mobile project that passes
-`mobileTools(...)` also gets `open_app`, `swipe`, and `alert`.
+`mobileTools(...)` also gets `open_app`, `swipe`, and `alert`, and one that
+passes `foldTools(...)` gets `fold` for a foldable device.
 
 | Throws | When |
 | --- | --- |
@@ -474,7 +493,8 @@ own names, scoped to the target's platform. A mobile project that passes
 The server ships with `e2e`. `e2e init` offers to register it in
 `.mcp.json` (Claude Code), `.cursor/mcp.json` (Cursor), and
 `.codex/config.toml` (Codex). Install dependencies and start the MCP client
-in the project directory so `npx` (`bunx` in a Bun project) uses the installed e2e version. By hand:
+in the project directory so the command uses the installed e2e version. Init
+writes your package manager's command; see [MCP server](/mcp-server#set-it-up). By hand:
 
 <CodeGroup>
 ```bash npm
@@ -541,8 +561,8 @@ options, or to name an export, write `engine` as an object:
 | `options` | object | The options the factory takes, as in an `e2e.config.ts`. |
 
 - **A package name alone** calls the package's default export with no
-  options. `@e2e-dev/web`, `@e2e-dev/mobile`, and `@e2e-dev/desktop` export
-  their factory this way. [Your own engine](/writing-an-engine#open-it-by-name) can do the same.
+  options. `@e2e-dev/web`, `@e2e-dev/mobile`, `@e2e-dev/desktop`, and
+  `@e2e-dev/electron` export their factory this way. [Your own engine](/writing-an-engine#open-it-by-name) can do the same.
 - **An option can be another factory call.** The server reads an option
   value as a call when it has `package` and no key other than `export` and
   `options`. It makes that call first and passes the result as the option.
@@ -566,10 +586,14 @@ options, or to name an export, write `engine` as an object:
   the error names the command that installs it for every project:
   `npm install --prefix ~/.e2e/engines @e2e-dev/web`. An agent that cannot
   run it, such as one in a sandbox without network access, asks you to.
-- **`app`** takes `url`, `bundleId`, and `appPath`, as a target's
-  [`app`](/reference/config#the-app-under-test) does. `@e2e-dev/web` needs
-  `url`. `@e2e-dev/mobile` and `@e2e-dev/desktop` need `bundleId` or
-  `appPath`.
+- **`app`** takes every key a target's
+  [`app`](/reference/config#the-app-under-test) does, such as
+  [`launchArguments`](/reference/config#launcharguments),
+  [`permissions`](/reference/config#permissions), and
+  [`command`](/reference/config#command), and is checked the same way.
+  `@e2e-dev/web` needs `url`. `@e2e-dev/mobile` and `@e2e-dev/desktop` need
+  `bundleId` or `appPath`. `@e2e-dev/electron` needs `appPath`, or none for a
+  packaged app named by `options: {executablePath}`.
 - **Files.** The project root is the server's working directory, and the
   session writes `.e2e/` there.
 - **Tests.** `e2e run` and `open_session {test}` need a config. To keep
@@ -627,7 +651,11 @@ exits.
 
 Sessions enforce what tests enforce:
 
-- Node ids are valid only against the newest observation.
+- Node ids are resolved against the newest observation. An id that only an
+  earlier observation listed is found again by what its node read as, when
+  exactly one node on the newest screen reads the same, as an agent step
+  finds it; otherwise the action fails with `LOCATOR_NOT_FOUND`. A secret
+  fill then checks the node it found, as for any fill.
 - The single actions fill a secret only through `type_secret`.
   [`run_code`](#run_code) fills one as a test does.
 - Once the config has loaded, its secret values are redacted from every text
@@ -666,6 +694,10 @@ attachment right away. Any recording still running saves in the background.
 The runner logs the saved path or the error. The MCP server logs the same
 result if it's still connected.
 
+[`run_code`](#run_code) gets the engine's fixture over the held test's app,
+as a normal session's code does, so a desktop window's `activate()` there
+changes the window the test reads after it resumes.
+
 The report and trace record the test's own steps. App logs and screen
 updates from an attached call can appear in the trace if they arrive after
 the call ends.
@@ -695,7 +727,7 @@ open_session {test: "tests/checkout.e2e.ts:12"}
   is torn down. The opening text leads with the outcome: passed, or failed
   with the code, the message, the failing line and the code around it, the
   URL, the nodes nearest a locator that matched nothing, and the last 15
-  steps. The session summary, the catalog, and the screen follow.
+  steps. The session summary, the catalog, and the line that names the screen follow.
 - **Test lines.** The test's own steps print no [test line](#test_lines).
   The session's lines start with the agent's first action, and `test_lines`
   returns them as the lines that continue the test.

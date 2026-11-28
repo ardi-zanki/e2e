@@ -21,12 +21,13 @@ import {
   type ActionTarget,
 } from './support.ts';
 import type { ConnectionBudget } from './operation-budget.ts';
+import { scrollToEdge } from './scroll-to.ts';
 
 /** How long a long press holds the button when the action names no duration. */
 const DEFAULT_LONG_PRESS_MS = 500;
 
 /** The keys a click holds, as Playwright's `modifiers` takes them; the contract spells them the same. */
-function heldKeys(action: Extract<LocatorAction, { kind: 'tap' | 'doubleTap' | 'secondaryTap' }>): { modifiers?: KeyModifier[] } {
+function heldKeys(action: Extract<LocatorAction, { kind: 'tap' | 'doubleTap' | 'secondaryTap' | 'multiTap' }>): { modifiers?: KeyModifier[] } {
   return action.modifiers === undefined ? {} : { modifiers: [...action.modifiers] };
 }
 
@@ -295,6 +296,10 @@ export async function dispatchLocatorAction(
     case 'doubleTap':
       await locator.dblclick({ timeout, ...heldKeys(action) });
       return;
+    case 'multiTap':
+      // One click sequence with a rising `detail`, as a person's triple click is.
+      await locator.click({ clickCount: action.count, timeout, ...heldKeys(action) });
+      return;
     case 'secondaryTap':
       await locator.click({ button: 'right', timeout, ...heldKeys(action) });
       return;
@@ -389,6 +394,9 @@ export async function dispatchLocatorAction(
       // The agent's node scroll and `screen` swipes both arrive here: a wheel
       // gesture over the node, sized by its own box.
       await performElementSwipe(target, action.direction, action.momentum ?? 'none', timeout);
+      return;
+    case 'scrollTo':
+      await scrollToEdge(await targetPage(target), target, action.edge, operation);
       return;
   }
 }
@@ -499,6 +507,9 @@ function actionabilitySummary(text: string): string {
  * resolves after the press.
  */
 export function classifyActionError(rawCause: unknown, action: LocatorAction): Error {
+  // `scrollTo` reports its own budget with the reason it ran out, which core
+  // quotes; a scroll toward an edge is safe to repeat, so it is not input to guard.
+  if (action.kind === 'scrollTo' && rawCause instanceof EngineError) return rawCause;
   const cut = inputCutOff(rawCause, action.kind);
   if (cut !== undefined) return cut;
   if (isClassified(rawCause)) return rawCause;
