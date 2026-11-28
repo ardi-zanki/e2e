@@ -40,6 +40,10 @@ test.describe('controls page', () => {
   test('reads a heading tag\'s level over its aria-level, and a progress element\'s value', async ({ screen }) => {
     await expect(screen.getByRole('heading', { name: 'Levels', level: 2 })).toHaveCount(1);
     await expect(screen.getByRole('progressbar', 'Sync')).toHaveValue('70');
+    // Clamped to its range, as the element's value is; an indeterminate one has no value at all.
+    await expect(screen.getByRole('progressbar', 'Overfull')).toHaveValue('10');
+    expect(await failure(expect(screen.getByRole('progressbar', 'Waiting')).toHaveValue('', { timeout: 500 }))).toBeDefined();
+    expect(await failure(expect(screen.getByRole('progressbar', 'Waiting')).not.toHaveValue('', { timeout: 500 }))).toBeDefined();
   });
 
   test('clears a field with a Delete key an editor sees, and focuses nothing on an element that takes no focus', async ({ screen }) => {
@@ -115,6 +119,10 @@ test.describe('controls page', () => {
     // Chromium leaves this label's text out of its tree; a tap on it toggles the checkbox.
     await screen.getByText('Drawn by its label').tap();
     await expect(drawn).not.toBeChecked();
+    // A label with an empty for names no control: a checkbox with no box and no id stays hidden beside it.
+    await expect(screen.getByTestId('ghost-box')).toBeHidden();
+    // Nor does one with an empty for that wraps the control: its for names the control it labels, here none.
+    await expect(screen.getByTestId('wrapped-ghost')).toBeHidden();
     // The field a label names is no second match for the label's words.
     await expect(screen.getByText('Tracked')).toHaveCount(1);
     // A text query scoped to the element that holds the text finds it.
@@ -144,12 +152,17 @@ test.describe('controls page', () => {
     await expect.poll(() => existsSync(path.join(downloads, 'note.txt'))).toBe(true);
   });
 
-  test('finds text that inline markup splits, and text under aria-hidden, as web() does', async ({ screen }) => {
+  test('finds text that inline markup splits, and text under aria-hidden or inert, as web() does', async ({ screen }) => {
     await expect(screen.getByText('Order ABC123', { exact: true })).toHaveCount(1);
     await expect(screen.getByText('Order ABC123')).toHaveCount(1);
     await expect(screen.getByText('ABC123', { exact: true })).toHaveCount(1);
     await expect(screen.getByText('Ref R77', { exact: true })).toHaveCount(1);
     await expect(screen.getByText('Unlisted directions', { exact: true })).toHaveCount(1);
+    await expect(screen.getByText('Background task', { exact: true })).toHaveCount(1);
+    // Each element under it is found by its own text, and the one that hides them by all of it.
+    await expect(screen.getByText('North gate', { exact: true })).toHaveCount(1);
+    await expect(screen.getByText('North gate', { exact: true })).toHaveAttribute('data-testid', 'north');
+    await expect(screen.getByText('North gate South gate', { exact: true })).toHaveCount(1);
   });
 
   test('checks a box its app replaces, unchecks a custom radio, and refuses to fill a field no user reaches', async ({ screen }) => {
