@@ -5,7 +5,7 @@
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { Transformer } from '@napi-rs/image';
-import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -357,6 +357,29 @@ describe('an app with no inspector', () => {
     await launched.windows.require().page.evaluate(() => document.querySelector('a')?.click());
     await expect.poll(() => (existsSync(path.join(data, 'Downloads')) ? readdirSync(path.join(data, 'Downloads')) : [])).toContain('saved.txt');
   });
+
+  it.skipIf(process.platform === 'win32')('takes its own directory from the window the launch ends on, when the splash it waited for closes during setup', async () => {
+    const launched = appWith(`app.on('window-all-closed', () => {}); app.whenReady().then(() => {
+      const splash = new BrowserWindow({ show: false });
+      splash.webContents.once('did-finish-load', () => setTimeout(() => {
+        splash.destroy();
+        new BrowserWindow({ show: false }).loadFile(require('node:path').join(__dirname, 'bundle', 'ui', 'index.html'));
+      }, 150));
+      splash.loadFile(require('node:path').join(__dirname, 'bundle', 'splash', 'index.html'));
+    });`);
+    for (const part of ['splash', 'ui']) {
+      mkdirSync(path.join(launched.directory, 'bundle', part), { recursive: true });
+      writeFileSync(path.join(launched.directory, 'bundle', part, 'index.html'), `<title>${part}</title>`);
+    }
+    // A packaged app's binary: no app path on the command line, and no inspector to report one.
+    const wrapper = path.join(launched.directory, 'packaged');
+    writeFileSync(wrapper, `#!/bin/sh\nshift\nexec "${electronBinary()}" "${launched.directory}" "$@"\n`, { mode: 0o755 });
+    const attempt = { appLog: (entry: { readonly text: string }) => void launched.logs.push(entry.text), navigation: () => undefined, environment: () => undefined } as unknown as EngineAttemptContext;
+    const setup: LaunchSetup = { executable: wrapper, projectRoot: launched.directory, app: {}, env: process.env, userDataDir: path.join(launched.directory, 'data'), attempt };
+    await launched.app.launch(setup, { signal: new AbortController().signal, timeoutMs: 20_000, runId: 'run', attemptId: 'attempt', origin: 'test' } as OperationContext);
+    expect(await launched.windows.require().page.title()).toBe('ui');
+    expect(launched.app.appDirectory).toBe(realpathSync(path.join(launched.directory, 'bundle', 'ui')));
+  });
 });
 
 describe('pixels', () => {
@@ -412,10 +435,33 @@ describe('pixels', () => {
     const refusal = async (reaction: string): Promise<string> => {
       const { windows, launch, directory } = appWith(`app.whenReady().then(() => new BrowserWindow({ show: ${SHOWN}, width: 300, height: 200 }).loadURL('data:text/html,' + ${JSON.stringify(encodeURIComponent(`<body style="margin:0">${RED_FRAME}${onMasks(reaction)}</body>`))}));`);
       await launch();
-      return String(await screenshotFile(new DevTools(), windows.require(), directory, 'shot.png').then(() => 'taken', (error: unknown) => error));
+      return String(await screenshotFile(new DevTools(), windows.require(), directory, 'shot.png', () => undefined).then(() => 'taken', (error: unknown) => error));
     };
     expect(await refusal(`const field = document.createElement('input'); field.type = 'password'; document.body.append(field);`)).toMatch(/appeared while the screenshot was taken/);
     expect(await refusal(`document.querySelector('iframe').style.marginLeft = '60px';`)).toMatch(/moved while the screenshot was taken/);
+  });
+
+  it('writes no screenshot of a window that left the app while it was captured', async () => {
+    const { windows, launch, directory } = appWith(`app.whenReady().then(() => new BrowserWindow({ show: ${process.platform === 'linux'}, width: 300, height: 200 }).loadURL('data:text/html,<title>Loaded</title>'));`);
+    await launch();
+    // In the app when the screenshot is asked for, gone from it once the capture is done.
+    const answers = [undefined, 'the window left the app'];
+    const refused = await screenshotFile(new DevTools(), windows.require(), directory, 'left.png', () => answers.shift()).then(() => undefined, (error: unknown) => error);
+    expect(refused).toMatchObject({ code: 'POLICY_DENIED', message: expect.stringMatching(/left the app/) });
+    expect(existsSync(path.join(directory, 'screenshots', 'left.png'))).toBe(false);
+  });
+
+  it('writes no screenshot when the window loaded another document while it was captured', async () => {
+    const { windows, launch, directory } = appWith(`app.whenReady().then(() => new BrowserWindow({ show: ${process.platform === 'linux'}, width: 300, height: 200 }).loadURL('data:text/html,<title>Loaded</title>'));`);
+    await launch();
+    const window = windows.require();
+    // In the app at both checks, with another document loaded in between, as two navigations would leave it.
+    const refused = await screenshotFile(new DevTools(), window, directory, 'swapped.png', () => {
+      setTimeout(() => window.page.documentChanged(), 0);
+      return undefined;
+    }).then(() => undefined, (error: unknown) => error);
+    expect(refused).toMatchObject({ code: 'POLICY_DENIED', message: expect.stringMatching(/loaded another document/) });
+    expect(existsSync(path.join(directory, 'screenshots', 'swapped.png'))).toBe(false);
   });
 
   it('gives each of two captures taken at once its own masks', async () => {
