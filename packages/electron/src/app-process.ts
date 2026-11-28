@@ -222,6 +222,7 @@ export class AppProcess {
       await answerWithin(app.process.browser.root.send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: downloads }), Math.min(left(), DOWNLOADS_SETUP_MS));
     } else {
       await placeDownloads(main, downloads, Math.min(left(), DOWNLOADS_SETUP_MS));
+      await keepWindowsDrawing(main, Math.min(left(), ANSWER_MS));
     }
     const versions = await answerWithin(readVersions(app, main), left());
     if (versions !== undefined) setup.attempt.environment(versions);
@@ -604,6 +605,25 @@ async function placeDownloads(main: MainProcess, directory: string, withinMs: nu
       // A session the app made before this ran, with no window on it yet, is placed when a window first uses it.
       electronApp.on('web-contents-created', (_event, contents) => place(contents.session));
     }, { downloads: directory, saved }),
+    withinMs,
+  );
+}
+
+/**
+ * Keeps the app's windows drawing while the app hides them, as the engine's
+ * launch switches keep covered ones. `hide()` stops a window's compositor on
+ * Windows and Linux: a screenshot of it then never returns and a recording
+ * gets no frame, whatever the DevTools protocol asks for. Electron keeps the
+ * compositor of a window whose contents have background throttling off, so
+ * it is turned off for every window, the ones opened later too. Only the
+ * main process can: an app with no inspector keeps the limit.
+ */
+async function keepWindowsDrawing(main: MainProcess, withinMs: number): Promise<void> {
+  await answerWithin(
+    main.evaluate(({ app: electronApp, webContents }) => {
+      for (const contents of webContents.getAllWebContents()) contents.setBackgroundThrottling(false);
+      electronApp.on('browser-window-created', (_event, window) => window.webContents.setBackgroundThrottling(false));
+    }, undefined),
     withinMs,
   );
 }

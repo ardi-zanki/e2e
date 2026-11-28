@@ -19,12 +19,19 @@ import { readWindow } from '../../src/locate.ts';
 import { resolveOptions } from '../../src/options.ts';
 import { Recorder } from '../../src/video.ts';
 import { DialogRouter } from '../../src/dialogs.ts';
-import { Windows } from '../../src/windows.ts';
+import { Windows, type AppWindow } from '../../src/windows.ts';
 import { electronBinary } from './electron-binary.ts';
 
 const LOADED = `new BrowserWindow({ show: false }).loadURL('data:text/html,<title>Loaded</title><h1>Loaded</h1>')`;
 /** Whether a window whose pixels a test reads is shown: Windows captures nothing of a hidden one, and Linux draws on a virtual display. Hidden on macOS, where a shown one would take the developer's screen. */
 const SHOWN = process.platform !== 'darwin';
+/**
+ * How long a test keeps a window on screen before the app hides it. A window
+ * hidden the moment it loaded can have drawn nothing yet, and a capture of
+ * one sometimes never returns on Windows and Linux: a gap of its own, which
+ * these tests leave out.
+ */
+const SHOWN_MS = 1000;
 const directories: string[] = [];
 const apps: AppProcess[] = [];
 
@@ -520,6 +527,27 @@ describe('pixels', () => {
     // Scrolled into the green half: the document's top, which a clip that ignored the scroll would show, is red.
     expect([rgba[middle], rgba[middle + 1], rgba[middle + 2]]).toEqual([0, 128, 0]);
   });
+
+  it('captures a window the app showed and then hid, and one it opens and hides later', async () => {
+    const { app, windows, launch } = appWith(`const page = (colour) => 'data:text/html,<body style="margin:0;background:' + colour + '"></body>';
+      const open = async (url) => { const window = new BrowserWindow({ show: ${SHOWN}, width: 400, height: 300 }); await window.loadURL(url); await new Promise((resolve) => setTimeout(resolve, ${SHOWN_MS})); window.hide(); };
+      app.whenReady().then(() => open(page('rgb(0,128,0)')));
+      globalThis.openSecond = () => setTimeout(() => open(page('rgb(0,0,255)')));`);
+    await launch();
+    const hidden = (): Promise<boolean[]> => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().map((window) => window.isVisible()), undefined);
+    const corner = async (window: AppWindow): Promise<number[]> => {
+      const raw = await readWindow(new DevTools(), window);
+      const { pixels } = await withPixels(new DevTools(), raw, { root: { ref: { id: 'window', revision: '' }, role: 'document' }, viewport: { width: 0, height: 0 } });
+      return [...new Transformer(pixels!.data).rawPixelsSync().subarray(0, 3)];
+    };
+    const first = windows.require();
+    await expect.poll(hidden, { timeout: 10_000 }).toEqual([false]);
+    expect(await corner(first)).toEqual([0, 128, 0]);
+    await app.evaluate(() => void (globalThis as unknown as { openSecond: () => unknown }).openSecond(), undefined);
+    await expect.poll(() => windows.open().length, { timeout: 10_000 }).toBe(2);
+    await expect.poll(hidden, { timeout: 10_000 }).toEqual([false, false]);
+    expect(await corner(windows.open().find((window) => window !== first)!)).toEqual([0, 0, 255]);
+  });
 });
 
 describe('video', () => {
@@ -563,6 +591,23 @@ describe('video', () => {
     const last = frames.at(-1)!;
     expect(last[0]).toBeLessThan(80);
     expect(last[2]).toBeGreaterThan(180);
+  });
+
+  it('records a window the app hid', async () => {
+    const { app, windows, launch, directory } = appWith(`const blinking = '<body style="margin:0;background:rgb(255,0,0)"><script>let blue = false; setInterval(() => { blue = !blue; document.body.style.background = blue ? "rgb(0,0,255)" : "rgb(255,0,0)"; }, 100)</script>';
+      app.whenReady().then(() => new BrowserWindow({ show: ${SHOWN}, width: 300, height: 200 }).loadURL('data:text/html,' + encodeURIComponent(blinking)));`);
+    await launch();
+    const ffmpeg = await ensureFfmpeg(process.env, new AbortController().signal);
+    await new Promise((resolve) => setTimeout(resolve, SHOWN_MS));
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.hide(), undefined);
+    const recorder = new Recorder(ffmpeg, directory, 'video/hidden.webm', () => true);
+    recorder.follow(windows.require().page);
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    expect(await recorder.stop()).toHaveLength(1);
+    // The page turns blue and back while it is hidden: a recording of a window that stopped drawing would hold one colour.
+    const frames = frameColours(ffmpeg, path.join(directory, 'video', 'hidden.webm'));
+    expect(frames.some(([red, , blue]) => red > 180 && blue < 80)).toBe(true);
+    expect(frames.some(([red, , blue]) => red < 80 && blue > 180)).toBe(true);
   });
 
   it('keeps no frame of a window it may not show, and writes no file for a recording with none', async () => {
