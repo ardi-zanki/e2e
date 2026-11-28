@@ -1,6 +1,6 @@
 ---
 title: Filter tes
-description: Jalankan hanya tes yang dapat terpengaruh oleh sebuah pull request.
+description: "Percepat CI dengan filter tes yang hanya menjalankan tes yang dapat terpengaruh oleh pull request melalui --changed-since, dan menjalankan lebih dulu tes yang paling mungkin terpengaruh."
 "og:image": "https://e2e.com/docs/images/og/filters.png?v=2de53e0ea4"
 "twitter:image": "https://e2e.com/docs/images/og/filters.png?v=2de53e0ea4"
 ---
@@ -77,7 +77,7 @@ besar, atau panggilan yang gagal seperti API key yang hilang pada PR fork)
 tetap dijalankan, dengan peringatan di output dan tes yang diedit langsung
 diprioritaskan lebih dulu. Memerlukan `ai` 7.0.134+.
 
-Model keputusan apa pun yang menjawab pertanyaan `boolean` dapat dipakai
+[Model keputusan](/decision-models) apa pun yang menjawab pertanyaan `boolean` dapat dipakai
 (misalnya `typeSafeAi.decisionModel('jev-latest')` langsung melalui
 `@ai-sdk/typesafe-ai` dengan `TYPESAFE_AI_API_KEY`). Berikan `providerOptions`
 untuk pengaturan gateway seperti `{ gateway: { zeroDataRetention: true } }`.
@@ -274,7 +274,7 @@ Lihat [`TestFilter`](/reference/config#testfilter) untuk tipenya.
 ## Selanjutnya
 
 <CardGroup cols={2}>
-  <Card title="Continuous integration" icon="rotate" href="/ci">
+  <Card title="Integrasi berkelanjutan" icon="rotate" href="/ci">
     Jaga pull request, bagi dengan shard, dan jalankan ulang kegagalan.
   </Card>
   <Card title="Reporter" icon="file-lines" href="/reference/reporters">

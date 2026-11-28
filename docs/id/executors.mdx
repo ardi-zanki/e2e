@@ -1,6 +1,6 @@
 ---
 title: Executor kustom
-description: Sesuaikan loop agent atau implementasikan step executor Anda sendiri.
+description: "Sesuaikan loop agent yang menjalankan agent.act dan agent.assert, atau gantikan dengan step executor Anda sendiri ketika prompt system dan tool tidak cukup."
 "og:image": "https://e2e.com/docs/images/og/executors.png?v=283f7962bb"
 "twitter:image": "https://e2e.com/docs/images/og/executors.png?v=283f7962bb"
 ---
@@ -150,7 +150,7 @@ export default {
 | Anggota | Isinya |
 | --- | --- |
 | `ctx.step` | `kind`, instruksi, param, dan `index` pada timeline attempt. Nilai secret terkonfigurasi di instruksi atau param terbaca `<secret:name>`. Handle `secrets.get()` tiba sebagai placeholder berisi nama saja yang diisi oleh `typeSecret` |
-| `ctx.observe({ tree, pixels })` | Teks layar yang disamarkan, dengan pohon node dan screenshot yang disamarkan secara opsional |
+| `ctx.observe({ tree, pixels })` | Teks layar yang disamarkan, dengan pohon node opsional dan screenshot yang disamarkan |
 | `ctx.read({ id }, { style })` | Gaya terhitung dari node yang saat ini tercantum, dengan secret disamarkan. Lihat [Tool proyek](/tools#read-a-nodes-computed-style) |
 | `ctx.actions` | Tindakan yang diperiksa dan direkam: `tap`, `doubleTap`, `longPress`, `secondaryTap`, `hover`, `type`, `typeSecret`, `press`, `select`, `check`, `drag`, `scrollTo`, `scrollUntil`, `upload`, `scroll`, `navigate`, `back`, `resize`, `switchTab`, `closeTab`, serta tindakan titik dan keyboard di bawah |
 | `ctx.target` | `name`, `platform`, dan `verbs` milik target, yaitu tindakan yang didukung engine-nya. Tawarkan hanya ini kepada model. `tapModifiers` bernilai true ketika `tap`, `doubleTap`, dan `secondaryTap` menerima `{ modifiers }` |
